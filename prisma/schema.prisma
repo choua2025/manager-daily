@@ -1,0 +1,392 @@
+// Prisma Schema for Daily Life Management System
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum AccountType {
+  CASH
+  BANK
+  MOBILE_WALLET
+  CREDIT_CARD
+  SAVINGS
+  BUSINESS
+}
+
+enum PaymentMethodType {
+  CASH
+  BANK_TRANSFER
+  QR_PAYMENT
+  CREDIT_CARD
+  DEBIT_CARD
+  MOBILE_WALLET
+}
+
+enum BudgetStatus {
+  SAFE
+  WARNING
+  CRITICAL
+  OVERSPENT
+}
+
+enum ScheduleType {
+  PERSONAL
+  BILL_PAYMENT
+  INCOME_EXPECTED
+  EXPENSE_PLANNED
+  DEBT_PAYMENT
+  SAVING_PLAN
+  SUBSCRIPTION
+  OTHER
+}
+
+enum ScheduleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  MISSED
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum NotificationType {
+  BUDGET_ALERT
+  PAYMENT_REMINDER
+  OVERSPENDING
+  MONTHLY_REPORT
+  SYSTEM
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password      String
+  role          Role     @default(USER)
+  avatarUrl     String?
+  currency      String   @default("USD")
+  timezone      String   @default("Asia/Vientiane")
+  isActive               Boolean   @default(true)
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
+
+  accounts       Account[]
+  categories     Category[]
+  paymentMethods PaymentMethod[]
+  transactions   Transaction[]
+  budgets        Budget[]
+  schedules      Schedule[]
+  notifications  Notification[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+  monthlyReports MonthlyReport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  id        String      @id @default(uuid())
+  userId    String
+  name      String
+  type      AccountType
+  balance   Decimal     @default(0) @db.Decimal(15, 2)
+  currency  String      @default("USD")
+  isDefault Boolean     @default(false)
+  isActive  Boolean     @default(true)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  userId    String?
+  name      String
+  type      CategoryType
+  icon      String?
+  color     String?
+  isDefault Boolean      @default(false)
+  isActive  Boolean      @default(true)
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@map("categories")
+}
+
+model PaymentMethod {
+  id       String            @id @default(uuid())
+  userId   String?
+  name     String
+  type     PaymentMethodType
+  isActive Boolean           @default(true)
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  userId          String
+  accountId       String
+  categoryId      String
+  paymentMethodId String?
+
+  type            TransactionType
+  status          TransactionStatus @default(CONFIRMED)
+  amount          Decimal           @db.Decimal(15, 2)
+  transactionDate DateTime
+  title           String
+  description     String?
+  vendorName      String?
+  referenceNo     String?
+  isRecurring     Boolean           @default(false)
+  recurringRuleId String?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account        @relation(fields: [accountId], references: [id])
+  category      Category       @relation(fields: [categoryId], references: [id])
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  paymentSlip   PaymentSlip?
+  schedules     Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([transactionDate])
+  @@index([type])
+  @@index([categoryId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model PaymentSlip {
+  id                 String   @id @default(uuid())
+  transactionId      String   @unique
+  imageUrl           String
+  cloudinaryPublicId String
+  fileName           String?
+  fileSize           Int?
+  mimeType           String?
+  uploadedAt         DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("payment_slips")
+}
+
+model Budget {
+  id          String       @id @default(uuid())
+  userId      String
+  categoryId  String?
+  month       Int
+  year        Int
+  amount      Decimal      @db.Decimal(15, 2)
+  spentAmount Decimal      @default(0) @db.Decimal(15, 2)
+  status      BudgetStatus @default(SAFE)
+  alertAt     Decimal?     @default(80) @db.Decimal(5, 2)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  Category? @relation(fields: [categoryId], references: [id])
+  schedules Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, categoryId, month, year])
+  @@index([userId])
+  @@index([month, year])
+  @@map("budgets")
+}
+
+model MonthlyReport {
+  id               String  @id @default(uuid())
+  userId           String
+  month            Int
+  year             Int
+  totalIncome      Decimal @default(0) @db.Decimal(15, 2)
+  totalExpense     Decimal @default(0) @db.Decimal(15, 2)
+  netSaving        Decimal @default(0) @db.Decimal(15, 2)
+  savingRate       Decimal @default(0) @db.Decimal(5, 2)
+  topCategoryData  Json?
+  overspendingData Json?
+  recommendation   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([month, year])
+  @@map("monthly_reports")
+}
+
+model Schedule {
+  id               String         @id @default(uuid())
+  userId           String
+  transactionId    String?
+  budgetId         String?
+  recurrenceRuleId String?
+
+  title                 String
+  description           String?
+  scheduleType          ScheduleType
+  status                ScheduleStatus @default(PENDING)
+  startDate             DateTime
+  endDate               DateTime?
+  startTime             String?
+  endTime               String?
+  isAllDay              Boolean        @default(false)
+  reminderMinutesBefore Int?
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction    Transaction?    @relation(fields: [transactionId], references: [id])
+  budget         Budget?         @relation(fields: [budgetId], references: [id])
+  recurrenceRule RecurrenceRule? @relation(fields: [recurrenceRuleId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([status])
+  @@map("schedules")
+}
+
+model RecurrenceRule {
+  id             String              @id @default(uuid())
+  frequency      RecurrenceFrequency
+  interval       Int                 @default(1)
+  dayOfWeek      Int?
+  dayOfMonth     Int?
+  monthOfYear    Int?
+  startsAt       DateTime
+  endsAt         DateTime?
+  maxOccurrences Int?
+
+  schedules Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("recurrence_rules")
+}
+
+model Notification {
+  id      String           @id @default(uuid())
+  userId  String
+  title   String
+  message String
+  type    NotificationType
+  isRead  Boolean          @default(false)
+  readAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@map("audit_logs")
+}
