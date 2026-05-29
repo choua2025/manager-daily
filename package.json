@@ -34,6 +34,12 @@
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
+  "overrides": {
+    "@types/multer": {
+      "@types/express": "$@types/express",
+      "@types/express-serve-static-core": "$@types/express-serve-static-core"
+    }
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",

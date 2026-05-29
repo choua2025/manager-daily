@@ -2,7 +2,6 @@ import multer from 'multer';
 import path from 'path';
 import { env } from '../config/env';
 import { AppError } from './error.middleware';
-import { Request } from 'express';
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -14,7 +13,8 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
