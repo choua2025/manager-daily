@@ -4,9 +4,10 @@
   "description": "Daily Life Management System - Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "start": "node dist/server.js",
+    "migrate:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
