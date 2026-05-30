@@ -4,17 +4,19 @@ import { prisma } from './config/prisma';
 
 async function main() {
   try {
-    // Test database connection
     await prisma.$connect();
     console.log('✅ Database connected');
 
-    // Render needs 0.0.0.0, not local IP
-    const PORT = Number(process.env.PORT) || env.port || 8000;
+    const PORT = Number(process.env.PORT) || 10000;
 
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 Host: 0.0.0.0`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
       console.log(`📊 Environment: ${env.nodeEnv}`);
+    });
+
+    server.on('error', (error) => {
+      console.error('❌ Server listen error:', error);
+      process.exit(1);
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err);
