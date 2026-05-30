@@ -9,7 +9,7 @@ async function main() {
     console.log('✅ Database connected');
 
     // Render needs 0.0.0.0, not local IP
-    const PORT = Number(process.env.PORT) || env.port || 10000;
+    const PORT = Number(process.env.PORT) || env.port || 8000;
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
