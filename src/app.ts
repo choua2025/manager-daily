@@ -29,10 +29,62 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Security & parsing
 app.use(helmet());
-app.use(cors({ origin: env.cors.origin, credentials: true }));
+
+// CORS
+const allowedOrigins = env.cors.origin;
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+
+// Root route for Render/browser check
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Manager Daily API is running',
+    status: 'OK',
+    health: '/health',
+    apiBase: '/api',
+    routes: {
+      auth: '/api/auth',
+      accounts: '/api/accounts',
+      categories: '/api/categories',
+      paymentMethods: '/api/payment-methods',
+      transactions: '/api/transactions',
+      budgets: '/api/budgets',
+      reports: '/api/reports',
+      schedules: '/api/schedules',
+      notifications: '/api/notifications',
+      users: '/api/users',
+    },
+  });
+});
+
+// HEAD route for Render health check
+app.head('/', (_req, res) => {
+  res.sendStatus(200);
+});
+
+// Optional robots route
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain');
+  res.send('User-agent: *\nAllow: /\n');
+});
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Rate limiting
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
@@ -50,11 +102,13 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 
-// Health check
-app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
-
 // 404 handler
-app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
+app.use((_req, res) =>
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+  })
+);
 
 // Global error handler
 app.use(errorHandler);
